@@ -43,6 +43,18 @@ data class Input(val draw: List<Int>, val boards: List<Board>) {
     }
     throw RuntimeException("Should not get here")
   }
+
+  fun part2(): Int {
+    val remaining = boards.toMutableList()
+    for (d in draw) {
+      for (b in remaining)
+        b.mark(d)
+      if (remaining.size == 1 && remaining.first().isWon())
+        return d * remaining.first().unmarked().sum()
+      remaining.removeIf { it.isWon() }
+    }
+    throw RuntimeException("Should not get here")
+  }
 }
 
 fun parse(file: String): Input {
@@ -73,4 +85,5 @@ fun parse(file: String): Input {
 fun main(args: Array<String>) {
   val input = parse(args.first())
   println(input.part1())
+  println(input.part2())
 }
