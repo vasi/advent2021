@@ -33,10 +33,10 @@ data class Input(val lines: List<Line>) {
     }
   }
 
-  fun part1(): Int {
+  fun overlaps(includeDiagonal: Boolean): Int {
     val counts = mutableMapOf<Point, Int>()
     for (line in lines) {
-      if (line.isDiagonal())
+      if (!includeDiagonal && line.isDiagonal())
         continue
       for (p in line.includedPoints()) {
         counts.compute(p) { _, v -> (v ?: 0) + 1}
@@ -49,5 +49,6 @@ data class Input(val lines: List<Line>) {
 
 fun main(args: Array<String>) {
   val input = Input.parse(args.first())
-  println(input.part1())
+  println(input.overlaps(includeDiagonal = false))
+  println(input.overlaps(includeDiagonal = true))
 }
