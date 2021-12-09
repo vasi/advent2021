@@ -60,9 +60,32 @@ data class Heightmap(val heights: List<List<Int>>) {
   fun part1(): Int {
     return lowPoints().map { at(it) + 1 }.sum()
   }
+
+  fun basinSize(start: Pos): Int {
+    val seen = mutableSetOf(start)
+    val todo = mutableListOf(start)
+    while (!todo.isEmpty()) {
+      val p = todo.removeLast()
+      val adj = p.adjacent(width(), height())
+      for (a in adj) {
+        if (at(a) != 9 && !seen.contains(a)) {
+          seen.add(a)
+          todo.add(a)
+        }
+      }
+    }
+    return seen.size
+  }
+
+  fun part2(): Int {
+    val sizes = lowPoints().map { basinSize(it) }
+    val top3 = sizes.sortedDescending().take(3)
+    return top3.reduce { a, b -> a * b }
+  }
 }
 
 fun main(args: Array<String>) {
   val heightmap = Heightmap.parse(args.first())
   println(heightmap.part1())
+  println(heightmap.part2())
 }
