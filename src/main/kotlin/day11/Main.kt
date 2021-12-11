@@ -1,6 +1,7 @@
 package day11
 
 import java.io.File
+import java.lang.RuntimeException
 
 data class Pos(val x: Int, val y: Int) {
   companion object {
@@ -118,10 +119,25 @@ data class Board(val cells: List<MutableList<Int>>) {
     }
     println()
   }
+
+  fun part2(): Int {
+    val total = height().toLong() * width()
+    for (i in generateSequence(1) { it + 1}) {
+      val flashes = step()
+//      println("Step $i")
+//      print()
+      if (total == flashes)
+        return i
+    }
+    throw RuntimeException("shouldn't get here")
+  }
 }
 
 fun main(args: Array<String>) {
   val board = Board.parse(args.first())
   println(board.part1())
+
+  val board2 = Board.parse(args.first())
+  println(board2.part2())
 }
 
