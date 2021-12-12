@@ -28,7 +28,11 @@ data class Cave(val edges: List<Pair<String, String>>) {
     return s.lowercase() == s
   }
 
-  fun countPaths(sofar: MutableList<String>): Long {
+  fun isStartEnd(s: String): Boolean {
+    return s == "start" || s == "end"
+  }
+
+  fun countPaths(sofar: MutableList<String>, twiceOk: Boolean, twiceSeen: Boolean): Long {
     val cur = sofar.last()
     if (cur == "end") {
       return 1
@@ -36,22 +40,32 @@ data class Cave(val edges: List<Pair<String, String>>) {
 
     var found = 0L
     for (adj in links[cur]!!) {
-      if (!isLower(adj) || !sofar.contains(adj)) {
-        sofar.add(adj)
-        found += countPaths(sofar)
-        sofar.removeLast()
+      var twSeen = twiceSeen
+      if (isLower(adj) && sofar.contains(adj)) {
+        if (isStartEnd(adj) || !twiceOk || twiceSeen)
+          continue
+        twSeen = true
       }
+
+      sofar.add(adj)
+      found += countPaths(sofar, twiceOk, twSeen)
+      sofar.removeLast()
     }
     return found
   }
 
   fun part1(): Long {
-    return countPaths(mutableListOf("start"))
+    return countPaths(mutableListOf("start"), false, false)
+  }
+
+  fun part2(): Long {
+    return countPaths(mutableListOf("start"), true, false)
   }
 }
 
 fun main(args: Array<String>) {
   val cave = Cave.parse(args.first())
   println(cave.part1())
+  println(cave.part2())
 }
 
