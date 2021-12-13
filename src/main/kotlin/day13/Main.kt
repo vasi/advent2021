@@ -6,8 +6,8 @@ data class Pos(val x: Int, val y: Int)
 data class Fold(val dir: String, val line: Int)
 
 data class Input(val dots: Set<Pos>, val folds: List<Fold>) {
-  val width = dots.map { it.x }.maxOrNull()!! + 1
-  val height = dots.map { it.y }.maxOrNull()!! + 1
+  private val width = dots.maxOf { it.x } + 1
+  private val height = dots.maxOf { it.y } + 1
 
   companion object {
     fun parse(file: String): Input {
@@ -39,9 +39,9 @@ data class Input(val dots: Set<Pos>, val folds: List<Fold>) {
 
   fun print() {
     val byY = dots.groupBy { it.y }
-    for (y in 0 .. height-1) {
-      val xs = byY.getOrDefault(y, listOf<Pos>()).map { it.x }.toSet()
-      for (x in 0 .. width - 1) {
+    for (y in 0 until height) {
+      val xs = byY.getOrDefault(y, listOf()).map { it.x }.toSet()
+      for (x in 0 until width) {
         if (xs.contains(x)) print("#")
         else print(".")
       }
@@ -66,10 +66,18 @@ data class Input(val dots: Set<Pos>, val folds: List<Fold>) {
   fun part1(): Int {
     return fold().dots.size
   }
+
+  fun part2() {
+    var i = this
+    while (i.folds.isNotEmpty()) {
+      i = i.fold()
+    }
+    i.print()
+  }
 }
 
 fun main(args: Array<String>) {
   val input = Input.parse(args.first())
   println(input.part1())
+  input.part2()
 }
-
