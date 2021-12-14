@@ -2,7 +2,9 @@ package day14
 
 import java.io.File
 
-data class Input(val template: String, var rules: Map<String, String>) {
+typealias PairCounts = Map<String, Long>
+
+data class Input(val initial: PairCounts, val last: String, var rules: Map<String, String>) {
   companion object {
     fun parse(file: String): Input {
       val lines = File(file).readLines().toMutableList()
@@ -16,27 +18,51 @@ data class Input(val template: String, var rules: Map<String, String>) {
         val (pair, insert) = re.matchEntire(line)!!.destructured
         rules[pair] = insert
       }
-      return Input(template, rules)
+
+      val pairCounts = template.windowed(2).groupingBy { it }.eachCount().
+        map { (k, v) -> k to v.toLong() }.toMap()
+      return Input(pairCounts, template.last().toString(), rules)
     }
   }
 
-  fun step(s: String): String {
-    return s.windowed(2).map { pair ->
-      if (rules.containsKey(pair))
-        pair[0] + rules[pair]!!
-      else pair[0]
-    }.joinToString("") + s.last()
+  fun incr(m: MutableMap<String, Long>, s: String, add: Long = 1) {
+    m.compute(s) { _, c -> (c ?: 0) + add }
   }
 
-  fun part1(): Int {
-    var s = template
-    repeat(10) { s = step(s) }
-    val counts = s.groupingBy { it }.eachCount().values
-    return counts.maxOrNull()!! - counts.minOrNull()!!
+  fun step(pairs: PairCounts): PairCounts {
+    val newPairs = mutableMapOf<String, Long>()
+    for ((pair, count) in pairs) {
+      when (val insert = rules[pair]) {
+        null -> incr(newPairs, pair, count)
+        else -> {
+          incr(newPairs, pair.take(1) + insert, count)
+          incr(newPairs, insert + pair[1], count)
+        }
+      }
+    }
+    return newPairs
+  }
+
+  fun mostMinusLeast(pairs: PairCounts): Long {
+    val counts = mutableMapOf<String, Long>()
+    for ((k, v) in pairs) {
+      incr(counts, k.first().toString(), v)
+    }
+    incr(counts, last)
+    return counts.values.maxOrNull()!! - counts.values.minOrNull()!!
+  }
+
+  fun answerAfterSteps(steps: Int): Long {
+    var p = initial
+    repeat(steps) {
+      p = step(p)
+    }
+    return mostMinusLeast(p)
   }
 }
 
 fun main(args: Array<String>) {
   val input = Input.parse(args.first())
-  println(input.part1())
+  println(input.answerAfterSteps(10))
+  println(input.answerAfterSteps(40))
 }
