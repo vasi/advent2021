@@ -24,15 +24,20 @@ data class WeightedPos(val pos: Pos, val weight: Long) : Comparable<WeightedPos>
   }
 }
 
-data class Board(val cells: List<List<Int>>) {
-  fun height(): Int {
+interface Board {
+  fun height(): Int
+  fun width(): Int
+  fun at(p: Pos): Int
+}
+
+data class SimpleBoard(val cells: List<List<Int>>) : Board {
+  override fun height(): Int {
     return cells.size
   }
-  fun width(): Int {
+  override fun width(): Int {
     return cells.first().size
   }
-
-  fun at(p: Pos): Int {
+  override fun at(p: Pos): Int {
     return cells[p.y][p.x]
   }
 
@@ -41,35 +46,53 @@ data class Board(val cells: List<List<Int>>) {
       val heights = File(file).readLines().map { l ->
         l.map { it - '0' }
       }
-      return Board(heights)
+      return SimpleBoard(heights)
     }
   }
+}
 
-  fun part1(): Long {
-    val complete = mutableSetOf<Pos>()
-    val todo = PriorityQueue<WeightedPos>()
-    val target = Pos(width() - 1, height() - 1)
-    todo.add(WeightedPos(Pos(0, 0), 0))
+data class RepeatingBoard(val base: Board, val repeat: Int) : Board {
+  override fun height(): Int {
+    return base.height() * repeat
+  }
 
-    while (true) {
-      val p = todo.remove()
+  override fun width(): Int {
+    return base.width() * repeat
+  }
 
-      if (complete.contains(p.pos))
-        continue
-      complete.add(p.pos)
+  override fun at(p: Pos): Int {
+    val p2 = Pos(p.x % base.width(), p.y % base.height())
+    val b = base.at(p2)
+    val b2 = b + (p.x / base.width()) + (p.y / base.height())
+    return (b2 - 1) % 9 + 1
+  }
+}
 
-      if (p.pos == target)
-        return p.weight
+fun totalRisk(board: Board): Long {
+  val complete = mutableSetOf<Pos>()
+  val todo = PriorityQueue<WeightedPos>()
+  val target = Pos(board.width() - 1, board.height() - 1)
+  todo.add(WeightedPos(Pos(0, 0), 0))
 
-      for (a in p.pos.adjacent(width(), height())) {
-        todo.add(WeightedPos(a, p.weight + at(a)))
-      }
+  while (true) {
+    val p = todo.remove()
+
+    if (complete.contains(p.pos))
+      continue
+    complete.add(p.pos)
+
+    if (p.pos == target)
+      return p.weight
+
+    for (a in p.pos.adjacent(board.width(), board.height())) {
+      todo.add(WeightedPos(a, p.weight + board.at(a)))
     }
   }
 }
 
 
 fun main(args: Array<String>) {
-  val board = Board.parse(args.first())
-  println(board.part1())
+  val simple = SimpleBoard.parse(args.first())
+  println(totalRisk(simple))
+  println(totalRisk(RepeatingBoard(simple, 5)))
 }
