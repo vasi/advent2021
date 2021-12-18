@@ -1,6 +1,7 @@
 package day18
 
 import java.io.File
+import java.lang.Long.max
 
 class CharStream(val s: String) {
   var i = 0
@@ -181,7 +182,19 @@ class Number(var v: Long = 0, var a: Number? = null, var b: Number? = null, var 
   }
 }
 
+fun part2(nums: List<String>): Long {
+  var best = 0L
+  for (a in nums) {
+    for (b in nums) {
+      val sum = Number.sum(listOf(a, b))
+      best = max(best, sum.magnitude())
+    }
+  }
+  return best
+}
+
 fun main(args: Array<String>) {
   val nums = File(args.first()).readLines()
   println(Number.sum(nums).magnitude())
+  println(part2(nums))
 }
