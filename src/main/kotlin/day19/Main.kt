@@ -1,39 +1,54 @@
 package day19
 
 import java.io.File
+import kotlin.math.absoluteValue
 
-data class Pos(val coords: List<Int>)
-
-fun combinationsHelper(sofar: MutableList<Int>, choose: Int, avail: List<Int>, idx: Int, f: (List<Int>) -> Boolean): Boolean {
-  if (choose == 0) {
-    return f(sofar)
-  } else if (choose > avail.size - idx) {
-    return false
-  } else {
-    sofar.add(avail[idx])
-    if (combinationsHelper(sofar, choose - 1, avail, idx + 1, f))
-      return true
-    sofar.removeLast()
-    return combinationsHelper(sofar, choose, avail, idx + 1, f)
+data class Pos(val coords: List<Int>) {
+  fun toVector(other: Pos): Vector {
+    return Vector(coords.zip(other.coords).map { (a, b) -> (a - b) })
   }
 }
 
-fun combinations(list: List<Int>, choose: Int, f: (List<Int>) -> Boolean): Boolean {
-  return combinationsHelper(mutableListOf(), choose, list, 0, f)
+data class Vector(val coords: List<Int>) {
+  val canon: List<Int> by lazy {
+    coords.map { it.absoluteValue }.sorted()
+  }
+
+  override fun hashCode(): Int {
+    return canon.hashCode()
+  }
+
+  override fun equals(other: Any?): Boolean {
+    return (other is Vector) && canon.equals(other.canon)
+  }
+}
+
+fun tri(n: Int): Int {
+  return n * (n + 1) / 2
 }
 
 data class ScannerReport(val name: String, val beacons: List<Pos>) {
-  fun forCanonicalSequences(dim: Int, dir: Int, f: (String) -> Boolean): Boolean {
-    val vs = beacons.map { it.coords[dim] }.map { it * dir }.sorted()
-    return combinations(vs, 12) { combo ->
-      f(combo.map { it - combo.first() }.joinToString(","))
-    }
+  companion object {
+    val OVERLAPPING_INTERSECTIONS = tri(12 - 1)
   }
 
-  fun canonicalSequences(dim: Int, dir: Int): Set<String> {
-    val ret = mutableSetOf<String>()
-    forCanonicalSequences(dim, dir) { ret.add(it); false }
-    return ret
+  fun vectors(): Set<Vector> {
+    val vs = mutableSetOf<Vector>()
+    for (i in 0 until beacons.size - 1) {
+      for (j in i+1 until beacons.size) {
+        vs.add(beacons[i].toVector(beacons[j]))
+      }
+    }
+
+    if (vs.size != tri(beacons.size - 1)) {
+      throw RuntimeException("oh shit, duplicate vector")
+    }
+    return vs
+  }
+
+  fun intersects(other: ScannerReport): Boolean {
+    val intersections = vectors().intersect(other.vectors()).size
+    return intersections >= OVERLAPPING_INTERSECTIONS
   }
 }
 
@@ -64,6 +79,10 @@ data class Report(val scanners: List<ScannerReport>) {
         val coords = line.split(',').map { it.toInt() }
         beacons.add(Pos(coords))
       }
+      if (name != null && beacons.isNotEmpty()) {
+        scanners.add(ScannerReport(name, beacons))
+      }
+
       return Report(scanners)
     }
   }
@@ -72,14 +91,11 @@ data class Report(val scanners: List<ScannerReport>) {
 fun main(args: Array<String>) {
   val report = Report.parse(args.first())
 
-  val canon = report.scanners.first().canonicalSequences(0, 1)
-
-  val second = report.scanners[1]
-  for (dim in 0..2) {
-    for (dir in listOf(-1, 1)) {
-      println("Trying dim=$dim dir=$dir")
-      if (second.forCanonicalSequences(dim, dir) { canon.contains(it) }) {
-        println("Found it!")
+  val scanners = report.scanners
+  for (i in 0 until scanners.size-1) {
+    for (j in i+1 until scanners.size) {
+      if (scanners[i].intersects(scanners[j])) {
+        println("Intersection: ${scanners[i].name} - ${scanners[j].name}")
       }
     }
   }
