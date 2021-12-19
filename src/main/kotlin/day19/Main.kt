@@ -21,18 +21,10 @@ data class Pos(val coords: List<Int>) : Comparable<Pos> {
     return Vector(coords.zip(other.coords).map { (a, b) -> (a - b) }, listOf(this, other))
   }
 
-  fun rotate(v1: Vector, v2: Vector): Pos {
-    val newCoords = v1.coords.map { v ->
-      val i = v2.coords.indexOfFirst { it.absoluteValue == v.absoluteValue }
-      val mult = v2.coords[i] / v
-      coords[i] * mult
-    }
-    return Pos(newCoords)
-  }
-
-  fun orient(v1: Vector, v2: Vector, translate: Vector): Pos {
-    val cs = rotate(v1, v2).coords.zip(translate.coords).map { (a, b) -> a + b }
-    return Pos(cs)
+  fun transform(transforms: List<Transform>): Pos {
+    return Pos(transforms.map { t ->
+      coords[t.dim] * t.dir + t.trans
+    })
   }
 }
 
@@ -49,17 +41,6 @@ data class Vector(val coords: List<Int>, val sources: List<Pos>) {
     return (other is Vector) && canon.equals(other.canon)
   }
 
-  fun helpfulForOrientation(): Boolean {
-    return canon.toSet().size == 3
-  }
-
-  fun translation(other: Vector): Vector {
-    val p1 = sources.minByOrNull { it.coords.first() }!!
-    val rotated = other.sources.map { it.rotate(this, other) }
-    val p2 = rotated.minByOrNull { it.coords.first() }!!
-    return Vector(p1.coords.zip(p2.coords).map { (a, b) -> a - b }, listOf())
-  }
-
   override fun toString(): String {
     return coords.joinToString(",")
   }
@@ -68,6 +49,8 @@ data class Vector(val coords: List<Int>, val sources: List<Pos>) {
 fun tri(n: Int): Int {
   return n * (n + 1) / 2
 }
+
+data class Transform(val dim: Int, val dir: Int, val trans: Int)
 
 data class ScannerReport(val name: String, val beacons: List<Pos>) {
   companion object {
@@ -88,6 +71,38 @@ data class ScannerReport(val name: String, val beacons: List<Pos>) {
     return vs
   }
 
+  fun beaconsInIntersection(vectors: Collection<Vector>): Set<Pos> {
+    val sources = vectors.flatMap { it.sources }
+    val counted = sources.groupBy { it }.mapValues { (_, v) -> v.size }
+    val filtered = counted.filter { (_, v) -> v == 11 }.keys
+    return filtered
+  }
+
+  fun dimTransform(vs: Collection<Int>, beacons: Collection<Pos>): Transform {
+    val sorted = vs.sorted()
+    val sig = sorted.map { it - sorted.first() }
+
+    for (dim in 0..2) {
+      for (dir in listOf(1, -1)) {
+        val bsorted = beacons.map { it.coords[dim] * dir }.sorted()
+        val bsig = bsorted.map { it - bsorted.first() }
+        if (sig == bsig) {
+          return Transform(dim, dir, sorted.first() - bsorted.first())
+        }
+      }
+    }
+    throw RuntimeException("No matching transform!")
+  }
+
+  fun calculateTransform(baseBeacons: Collection<Pos>, myBeacons: Collection<Pos>): List<Transform> {
+    if (baseBeacons.size != 12 || myBeacons.size != 12) {
+      throw RuntimeException("bad number of beacons")
+    }
+    return (0..2).map { d ->
+      dimTransform(baseBeacons.map { it.coords[d] }, myBeacons)
+    }
+  }
+
   fun tryOrient(@Suppress("UNUSED_PARAMETER") towards: ScannerReport,
                 towardsVectors: Set<Vector>): ScannerReport? {
     val myVectors = vectors()
@@ -97,15 +112,12 @@ data class ScannerReport(val name: String, val beacons: List<Pos>) {
     }
 
     // Find all implicated beacons
+    val transforms = calculateTransform(
+      beaconsInIntersection(intersecting),
+      beaconsInIntersection(myVectors.filter { intersecting.contains(it) })
+    )
 
-    // Find two vectors that share a node
-
-    // Find the other's equivalent of one of our vectors
-    val v = intersecting.find { it.helpfulForOrientation() }!!
-    val o = myVectors.find { it == v }!!
-    val translation = v.translation(o)
-
-    return ScannerReport(name, beacons.map { it.orient(v, o, translation) })
+    return ScannerReport(name, beacons.map { it.transform(transforms) })
   }
 
   override fun toString(): String {
