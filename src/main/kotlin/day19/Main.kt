@@ -1,6 +1,7 @@
 package day19
 
 import java.io.File
+import java.lang.Integer.max
 import kotlin.math.absoluteValue
 
 data class Pos(val coords: List<Int>) : Comparable<Pos> {
@@ -25,6 +26,10 @@ data class Pos(val coords: List<Int>) : Comparable<Pos> {
     return Pos(transforms.map { t ->
       coords[t.dim] * t.dir + t.trans
     })
+  }
+
+  fun manhattanDistance(other: Pos): Int {
+    return coords.zip(other.coords).map { (a, b) -> (a - b).absoluteValue }.sum()
   }
 }
 
@@ -103,8 +108,10 @@ data class ScannerReport(val name: String, val beacons: List<Pos>) {
     }
   }
 
+  data class OrientResult(val scanner: ScannerReport, val scannerPos: Pos)
+
   fun tryOrient(@Suppress("UNUSED_PARAMETER") towards: ScannerReport,
-                towardsVectors: Set<Vector>): ScannerReport? {
+                towardsVectors: Set<Vector>): OrientResult? {
     val myVectors = vectors()
     val intersecting = towardsVectors.intersect(myVectors)
     if (intersecting.size < OVERLAPPING_INTERSECTIONS) {
@@ -117,7 +124,10 @@ data class ScannerReport(val name: String, val beacons: List<Pos>) {
       beaconsInIntersection(myVectors.filter { intersecting.contains(it) })
     )
 
-    return ScannerReport(name, beacons.map { it.transform(transforms) })
+    return OrientResult(
+      ScannerReport(name, beacons.map { it.transform(transforms) }),
+      Pos(transforms.map { it.trans })
+    )
   }
 
   override fun toString(): String {
@@ -167,10 +177,13 @@ data class Report(val scanners: List<ScannerReport>) {
     }
   }
 
-  fun reorient(): Report {
+  data class ReportOrientResult(val report: Report, val scannerPositions: List<Pos>)
+
+  fun reorient(): ReportOrientResult {
     val done = mutableListOf<ScannerReport>()
     val oriented = mutableListOf(scanners.first())
     val unoriented = scanners.drop(1).toMutableList()
+    val positions = mutableListOf(Pos(listOf(0, 0, 0)))
 
     while (unoriented.isNotEmpty()) {
       val basis = oriented.removeLast()
@@ -180,8 +193,9 @@ data class Report(val scanners: List<ScannerReport>) {
       unoriented.removeAll { u ->
         val fixed = u.tryOrient(basis, vectors)
         if (fixed != null) {
-          basis.assertCommon(fixed)
-          oriented.add(fixed)
+          basis.assertCommon(fixed.scanner)
+          oriented.add(fixed.scanner)
+          positions.add(fixed.scannerPos)
           true
         } else {
           false
@@ -189,15 +203,29 @@ data class Report(val scanners: List<ScannerReport>) {
       }
     }
 
-    return Report(done + oriented)
+    return ReportOrientResult(Report(done + oriented), positions)
   }
 
   fun countBeacons(): Int {
-    return reorient().scanners.flatMap { it.beacons }.toSet().size
+    return scanners.flatMap { it.beacons }.toSet().size
   }
+}
+
+fun maxDistance(positions: List<Pos>): Int {
+  var best = 0
+
+  for (p1 in positions) {
+    for (p2 in positions) {
+      val dist = p1.manhattanDistance(p2)
+      best = max(best, dist)
+    }
+  }
+  return best
 }
 
 fun main(args: Array<String>) {
   val report = Report.parse(args.first())
-  println(report.countBeacons())
+  val result = report.reorient()
+  println(result.report.countBeacons())
+  println(maxDistance(result.scannerPositions))
 }
