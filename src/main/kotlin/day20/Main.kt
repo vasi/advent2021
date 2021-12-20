@@ -81,18 +81,17 @@ data class Input(val img: Image, val algo: Enhancement) {
     }
   }
 
-  fun part1(): Int {
+  fun enhance(n: Int): Image {
     var i = img
-    println("$i\n\n")
-    repeat(2) {
+    repeat(n) {
       i = i.evolve(algo)
-      println("$i\n\n")
     }
-    return i.litPixels()
+    return i
   }
 }
 
 fun main(args: Array<String>) {
   val input = Input.parse(args.first())
-  println(input.part1())
+  println(input.enhance(2).litPixels())
+  println(input.enhance(50).litPixels())
 }
