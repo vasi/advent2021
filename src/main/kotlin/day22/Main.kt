@@ -2,17 +2,9 @@ package day22
 
 import java.io.File
 
-data class Pos(val dim: List<Int>)
-
-data class Cuboid(val p1: Pos, val p2: Pos) {
+data class Cuboid(val dims: List<IntRange>) {
   fun size(): Long {
-    return (0..2).map { (p2.dim[it] - p1.dim[it] + 1).toLong() }.reduce { a, b -> a * b }
-  }
-
-  companion object {
-    fun fromRanges(vararg dims: IntRange): Cuboid {
-      return Cuboid(Pos(dims.map { it.start }), Pos(dims.map { it.endInclusive }))
-    }
+    return dims.map { (it.endInclusive - it.start + 1).toLong() }.reduce { a, b -> a * b }
   }
 }
 
@@ -24,12 +16,9 @@ data class Instruction(val cuboid: Cuboid, val on: Boolean) {
         val on = dir == "on"
         val dims = coords.split(",").map {
           val (p1, p2) = Regex(""".=(-?\d+)..(-?\d+)""").matchEntire(it)!!.destructured
-          Pair(p1.toInt(), p2.toInt())
+          p1.toInt()..p2.toInt()
         }
-        Instruction(Cuboid(
-          Pos(dims.map { it.first }),
-          Pos(dims.map { it.second }),
-        ), on)
+        Instruction(Cuboid(dims), on)
       }
     }
   }
@@ -37,25 +26,27 @@ data class Instruction(val cuboid: Cuboid, val on: Boolean) {
 
 class Grid(val insts: List<Instruction>, val bounding: Cuboid? = null) {
   val dims = makeDims()
-  val on = mutableSetOf<Cuboid>()
+  val on = HashSet<Int>()
 
   fun makeDim(dim: Int): List<IntRange> {
     // start of a new range
-    val cutpoints = insts.map { it.cuboid }.flatMap {
-      listOf(it.p1.dim[dim], it.p2.dim[dim] + 1)
+    val cutpoints = insts.map { it.cuboid.dims[dim] }.flatMap {
+      listOf(it.start, it.endInclusive + 1)
     }.sorted().toMutableList()
 
     // add the bound
-    if (bounding != null && cutpoints.removeIf { it < bounding.p1.dim[dim] }) {
-      cutpoints.add(0, bounding.p1.dim[dim])
-    }
-    if (bounding != null && cutpoints.removeIf { it >= bounding.p2.dim[dim] }) {
-      cutpoints.add(bounding.p2.dim[dim] + 1)
+    if (bounding != null) {
+      val bound = bounding.dims[dim]
+      if (cutpoints.removeIf { it < bound.start }) {
+        cutpoints.add(0, bound.start)
+      }
+      if (cutpoints.removeIf { it >= bound.endInclusive }) {
+        cutpoints.add(bound.endInclusive + 1)
+      }
     }
 
     val r = cutpoints.windowed(2).filter { (a, b) -> a != b }.
       map { (a, b) -> IntRange(a, b - 1) }
-    println(r.size)
     return r
   }
 
@@ -63,22 +54,47 @@ class Grid(val insts: List<Instruction>, val bounding: Cuboid? = null) {
     return (0..2).map { makeDim(it) }
   }
 
-  fun matching(dim: Int, inst: Instruction): List<IntRange> {
-    return dims[dim].filter {
-      inst.
-    }
+  fun idxs(dim: Int, inst: Instruction): List<Int> {
+    val idim = inst.cuboid.dims[dim]
+    return dims[dim].indices.filter { idim.contains(dims[dim][it].start) }
+  }
+
+  fun cuboidPtr(x: Int, y: Int, z: Int): Int {
+    return x.shl(20) + y.shl(10) + z
+  }
+
+  fun ptrToIndices(ptr: Int): List<Int> {
+    val mask = 1.shl(10) - 1
+    return listOf(ptr.shr(20), ptr.shr(10), ptr).map { it.and(mask) }
   }
 
   fun doInstruction(inst: Instruction) {
+    for (x in idxs(0, inst)) {
+      for (y in idxs(1, inst)) {
+        for (z in idxs(2, inst)) {
+          val c = cuboidPtr(x, y, z)
+          if (inst.on) {
+            on.add(c)
+          } else {
+            on.remove(c)
+          }
+        }
+      }
+    }
   }
 
   fun cubesOn(): Long {
-    return on.map { it.size() }.sum()
+    return on.map { ptr ->
+      val ranges = ptrToIndices(ptr).zip(0..2).map { (i, d) -> dims[d][i] }
+      Cuboid(ranges).size()
+    }.sum()
   }
 
   fun doAll(insts: List<Instruction>): Long {
     for (inst in insts) {
+      println(inst)
       doInstruction(inst)
+      println(on.size)
     }
     return cubesOn()
   }
@@ -87,7 +103,7 @@ class Grid(val insts: List<Instruction>, val bounding: Cuboid? = null) {
 fun main(args: Array<String>) {
   val insts = Instruction.parse(args.first())
 
-  val part1 = Grid(insts, Cuboid.fromRanges(-50..50, -50..50, -50..50))
+  val part1 = Grid(insts, Cuboid(listOf(-50..50, -50..50, -50..50)))
   println(part1.doAll(insts))
 
   println(Grid(insts).doAll(insts))
