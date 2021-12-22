@@ -1,37 +1,18 @@
 package day22
 
 import java.io.File
-import java.lang.Integer.max
-import java.lang.Integer.min
 
-data class Pos(val x: Int, val y: Int, val z: Int)
+data class Pos(val dim: List<Int>)
 
 data class Cuboid(val p1: Pos, val p2: Pos) {
-  fun intersectDim(p1min: Int, p1max: Int, p2min: Int, p2max: Int): IntRange {
-    val min = max(p1min, p2min)
-    val max = min(p1max, p2max)
-    if (min > max) {
-      return IntRange.EMPTY
-    }
-    return min..max
+  fun size(): Long {
+    return (0..2).map { (p2.dim[it] - p1.dim[it] + 1).toLong() }.reduce { a, b -> a * b }
   }
 
-  fun points(within: Cuboid): List<Pos> {
-    val r = mutableListOf<Pos>()
-    for (x in intersectDim(p1.x, p2.x, within.p1.x, within.p2.x)) {
-      for (y in intersectDim(p1.y, p2.y, within.p1.y, within.p2.y)) {
-        for (z in intersectDim(p1.z, p2.z, within.p1.z, within.p2.z)) {
-          r.add(Pos(x, y, z))
-        }
-      }
+  companion object {
+    fun fromRanges(vararg dims: IntRange): Cuboid {
+      return Cuboid(Pos(dims.map { it.start }), Pos(dims.map { it.endInclusive }))
     }
-    return r
-  }
-
-  fun contains(pos: Pos): Boolean {
-    return pos.x >= p1.x && pos.x <= p2.x &&
-        pos.y >= p1.y && pos.y <= p2.y &&
-        pos.z >= p1.z && pos.z <= p2.z
   }
 }
 
@@ -41,40 +22,73 @@ data class Instruction(val cuboid: Cuboid, val on: Boolean) {
       return File(file).readLines().map { line ->
         val (dir, coords) = line.split(" ")
         val on = dir == "on"
-        val (x, y, z) = coords.split(",").map {
+        val dims = coords.split(",").map {
           val (p1, p2) = Regex(""".=(-?\d+)..(-?\d+)""").matchEntire(it)!!.destructured
           Pair(p1.toInt(), p2.toInt())
         }
         Instruction(Cuboid(
-          Pos(x.first, y.first, z.first),
-          Pos(x.second, y.second, z.second)
+          Pos(dims.map { it.first }),
+          Pos(dims.map { it.second }),
         ), on)
       }
     }
   }
 }
 
-data class Grid(val on: MutableSet<Pos> = mutableSetOf()) {
-  fun run(inst: Instruction, within: Cuboid) {
-    for (pos in inst.cuboid.points(within)) {
-      if (inst.on) {
-        on.add(pos)
-      } else {
-        on.remove(pos)
-      }
+class Grid(val insts: List<Instruction>, val bounding: Cuboid? = null) {
+  val dims = makeDims()
+  val on = mutableSetOf<Cuboid>()
+
+  fun makeDim(dim: Int): List<IntRange> {
+    // start of a new range
+    val cutpoints = insts.map { it.cuboid }.flatMap {
+      listOf(it.p1.dim[dim], it.p2.dim[dim] + 1)
+    }.sorted().toMutableList()
+
+    // add the bound
+    if (bounding != null && cutpoints.removeIf { it < bounding.p1.dim[dim] }) {
+      cutpoints.add(0, bounding.p1.dim[dim])
+    }
+    if (bounding != null && cutpoints.removeIf { it >= bounding.p2.dim[dim] }) {
+      cutpoints.add(bounding.p2.dim[dim] + 1)
+    }
+
+    val r = cutpoints.windowed(2).filter { (a, b) -> a != b }.
+      map { (a, b) -> IntRange(a, b - 1) }
+    println(r.size)
+    return r
+  }
+
+  fun makeDims(): List<List<IntRange>> {
+    return (0..2).map { makeDim(it) }
+  }
+
+  fun matching(dim: Int, inst: Instruction): List<IntRange> {
+    return dims[dim].filter {
+      inst.
     }
   }
 
-  fun part1(insts: List<Instruction>): Int {
-    val within = Cuboid(Pos(-50, -50, -50), Pos(50, 50,50))
+  fun doInstruction(inst: Instruction) {
+  }
+
+  fun cubesOn(): Long {
+    return on.map { it.size() }.sum()
+  }
+
+  fun doAll(insts: List<Instruction>): Long {
     for (inst in insts) {
-      run(inst, within)
+      doInstruction(inst)
     }
-    return on.size
+    return cubesOn()
   }
 }
 
 fun main(args: Array<String>) {
   val insts = Instruction.parse(args.first())
-  println(Grid().part1(insts))
+
+  val part1 = Grid(insts, Cuboid.fromRanges(-50..50, -50..50, -50..50))
+  println(part1.doAll(insts))
+
+  println(Grid(insts).doAll(insts))
 }
