@@ -4,7 +4,7 @@ import java.util.*
 
 data class Space(val edges: MutableList<Int>, val target: Char? = null)
 
-data class Layout(val spaces: List<Space>) {
+data class Layout(val spaces: List<Space>, val part2: Boolean) {
   val costs = mapOf(
     'A' to 1,
     'B' to 10,
@@ -48,7 +48,7 @@ data class Layout(val spaces: List<Space>) {
           spaces[i+1].edges.add(s+1)
         }
       }
-      return Layout(spaces)
+      return Layout(spaces, part2)
     }
   }
 
@@ -119,30 +119,104 @@ data class Layout(val spaces: List<Space>) {
     }
   }
 
-  fun bestCost(startPosition: String): Int {
-    val complete = mutableSetOf<String>()
-    val wantPosition = wantPosition()
-    val todo = PriorityQueue<WeightedPos>()
-    todo.add(WeightedPos(startPosition, 0))
-    while (todo.isNotEmpty()) {
-      val next = todo.remove()
-      if (complete.contains(next.pos)) {
-        continue
+  // distances to target for each letter
+  fun distancesFor(letter: Char?): List<Int> {
+    val ds: MutableList<Int?> = spaces.indices.map {
+      if (spaces[it].target == letter) 0 else null
+    }.toMutableList()
+    while (ds.contains(null)) {
+      for (i in ds.indices) {
+        for (e in spaces[i].edges) {
+          if (ds[i] == null && ds[e] != null) {
+            ds[i] = ds[e]!! + 1
+          }
+        }
       }
-      if (next.pos == wantPosition) {
-        return next.cost
-      }
+    }
+    return ds.map { it!! }
+  }
 
-      complete.add(next.pos)
+  val distances = listOf('A', 'B', 'C', 'D', null).map {
+    it to distancesFor(it)
+  }.toMap()
+
+  val baseEstimate = distances[null]!!.mapIndexed { i, d ->
+    if (d == 0) {
+      0
+    } else {
+      costs[spaces[i].target]!! * d
+    }
+  }.sum()
+
+  fun estimate(position: String): Int {
+    val h = position.mapIndexed { i, c ->
+      if (c == '.') {
+        0
+      } else {
+        val d = costs[c]!!
+        if (spaces[i].target == c) {
+          -distances[null]!![i] * d
+        } else {
+          distances[c]!![i] * d
+        }
+      }
+    }.sum()
+    return h + baseEstimate
+  }
+
+  fun bestCost(start: String): Int {
+    val goal = wantPosition()
+    val complete = mutableSetOf<String>()
+    val dists = mutableMapOf(start to 0)
+    val todo = PriorityQueue<WeightedPos>()
+    todo.add(WeightedPos(start, estimate(start)))
+    var steps = 0
+
+    while (todo.isNotEmpty()) {
+      steps += 1
+      val cur = todo.remove()
+      if (cur.pos == goal) {
+        return dists[goal]!!
+      }
+      complete.add(cur.pos)
+
+//      printPos(cur.pos)
+//      println("Distance: ${dists[cur.pos]}")
+//      println("Estimate: ${estimate(cur.pos)}")
+//      println("Total: ${cur.cost}")
+//      println()
+
       for (i in 0 until spaces.size) {
-        for ((move, cost) in legalMoves(next.pos, i)) {
-          if (!complete.contains(move)) {
-            todo.add(WeightedPos(move, cost + next.cost))
+        for ((move, cost) in legalMoves(cur.pos, i)) {
+          val dist = dists[cur.pos]!! + cost
+          if (!dists.containsKey(move) || dist < dists[move]!!) {
+            dists[move] = dist
+            if (!complete.contains(move)) {
+              val hscore = dist + estimate(move)
+              todo.add(WeightedPos(move, hscore))
+            }
           }
         }
       }
     }
     throw RuntimeException("???")
+  }
+
+  fun printPos(p: String) {
+    val lines = mutableListOf<String>()
+    lines.add("#############")
+    lines.add("#${p[8]}${p[9]}${p[10]}${p[11]}${p[12]}${p[13]}${p[14]}${p[15]}${p[16]}${p[17]}${p[18]}#")
+    lines.add("###${p[0]}#${p[2]}#${p[4]}#${p[6]}###")
+    if (part2) {
+      lines.add("  #${p[19]}#${p[21]}#${p[23]}#${p[25]}#")
+      lines.add("  #${p[20]}#${p[22]}#${p[24]}#${p[26]}#")
+    }
+    lines.add("  #${p[1]}#${p[3]}#${p[5]}#${p[7]}#")
+    lines.add("  #########")
+
+    for (l in lines) {
+      println(l)
+    }
   }
 }
 
@@ -151,6 +225,6 @@ fun main() {
   val actualInput = "DBCCADBA..........."
   val append = "DDCBBAAC"
 
-  println(Layout.layout(false).bestCost(sampleInput))
+//  println(Layout.layout(false).bestCost(sampleInput))
   println(Layout.layout(true).bestCost(sampleInput + append))
 }
