@@ -2,7 +2,7 @@ package day23
 
 import java.util.*
 
-data class Space(val edges: List<Int>, val target: Char? = null)
+data class Space(val edges: MutableList<Int>, val target: Char? = null)
 
 data class Layout(val spaces: List<Space>) {
   val costs = mapOf(
@@ -13,30 +13,42 @@ data class Layout(val spaces: List<Space>) {
   )
 
   companion object {
-    fun layout(): Layout {
-      return Layout(listOf(
+    fun layout(part2: Boolean): Layout {
+      val spaces = mutableListOf(
         // rooms, top to bottom
-        Space(listOf(1, 10), 'A'), // 0
-        Space(listOf(0), 'A'),
-        Space(listOf(3, 12), 'B'), // 2
-        Space(listOf(2), 'B'),
-        Space(listOf(5, 14), 'C'), // 4
-        Space(listOf(4), 'C'),
-        Space(listOf(7, 16), 'D'), // 6
-        Space(listOf(6), 'D'),
+        Space(mutableListOf(1, 10), 'A'), // 0
+        Space(mutableListOf(0), 'A'),
+        Space(mutableListOf(3, 12), 'B'), // 2
+        Space(mutableListOf(2), 'B'),
+        Space(mutableListOf(5, 14), 'C'), // 4
+        Space(mutableListOf(4), 'C'),
+        Space(mutableListOf(7, 16), 'D'), // 6
+        Space(mutableListOf(6), 'D'),
         // hallway, left to right
-        Space(listOf(9)), // 8
-        Space(listOf(8, 10)),
-        Space(listOf(9, 11, 0)), // 10 - outside A
-        Space(listOf(10, 12)),
-        Space(listOf(11, 13, 2)), // 12 - outside B
-        Space(listOf(12, 14)),
-        Space(listOf(13, 15, 4)), // 14 - outside C
-        Space(listOf(14, 16)),
-        Space(listOf(15, 17, 6)), // 16 - outside D
-        Space(listOf(16, 18)),
-        Space(listOf(17)), // 18
-      ))
+        Space(mutableListOf(9)), // 8
+        Space(mutableListOf(8, 10)),
+        Space(mutableListOf(9, 11, 0)), // 10 - outside A
+        Space(mutableListOf(10, 12)),
+        Space(mutableListOf(11, 13, 2)), // 12 - outside B
+        Space(mutableListOf(12, 14)),
+        Space(mutableListOf(13, 15, 4)), // 14 - outside C
+        Space(mutableListOf(14, 16)),
+        Space(mutableListOf(15, 17, 6)), // 16 - outside D
+        Space(mutableListOf(16, 18)),
+        Space(mutableListOf(17)), // 18
+      )
+      if (part2) {
+        for (i in 0..6 step 2) {
+          val s = spaces.size
+          spaces.add(Space(mutableListOf(i, s + 1), spaces[i].target))
+          spaces.add(Space(mutableListOf(i + 1, s), spaces[i].target))
+          spaces[i].edges.remove(i+1)
+          spaces[i].edges.add(s)
+          spaces[i+1].edges.remove(i)
+          spaces[i+1].edges.add(s+1)
+        }
+      }
+      return Layout(spaces)
     }
   }
 
@@ -124,7 +136,9 @@ data class Layout(val spaces: List<Space>) {
       complete.add(next.pos)
       for (i in 0 until spaces.size) {
         for ((move, cost) in legalMoves(next.pos, i)) {
-          todo.add(WeightedPos(move, cost + next.cost))
+          if (!complete.contains(move)) {
+            todo.add(WeightedPos(move, cost + next.cost))
+          }
         }
       }
     }
@@ -133,8 +147,10 @@ data class Layout(val spaces: List<Space>) {
 }
 
 fun main() {
-  val layout = Layout.layout()
   val sampleInput = "BACDBCDA..........."
   val actualInput = "DBCCADBA..........."
-  println(layout.bestCost(actualInput))
+  val append = "DDCBBAAC"
+
+  println(Layout.layout(false).bestCost(sampleInput))
+  println(Layout.layout(true).bestCost(sampleInput + append))
 }
