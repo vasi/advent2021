@@ -88,6 +88,11 @@ data class Layout(val spaces: List<Space>, val part2: Boolean) {
       return false // wrong room
     } else if (sr.target == null && er.target == null) {
       return false // hallway to hallway
+    } else if (sr.target == null && er.target == cur) {
+      // hallway to room can't have anything bad in it
+      return !spaces.indices.any { i ->
+        spaces[i].target == cur && position[i] != '.' && position[i] != cur
+      }
     } else {
       return true
     }
@@ -225,6 +230,6 @@ fun main() {
   val actualInput = "DBCCADBA..........."
   val append = "DDCBBAAC"
 
-//  println(Layout.layout(false).bestCost(sampleInput))
-  println(Layout.layout(true).bestCost(sampleInput + append))
+  println(Layout.layout(false).bestCost(actualInput))
+//  println(Layout.layout(true).bestCost(actualInput + append))
 }
