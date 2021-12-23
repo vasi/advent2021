@@ -88,7 +88,7 @@ data class Layout(val spaces: List<Space>, val part2: Boolean) {
       return false // wrong room
     } else if (sr.target == null && er.target == null) {
       return false // hallway to hallway
-    } else if (sr.target == null && er.target == cur) {
+    } else if (er.target == cur) {
       // hallway to room can't have anything bad in it
       return !spaces.indices.any { i ->
         spaces[i].target == cur && position[i] != '.' && position[i] != cur
@@ -124,112 +124,37 @@ data class Layout(val spaces: List<Space>, val part2: Boolean) {
     }
   }
 
-  // distances to target for each letter
-  fun distancesFor(letter: Char?): List<Int> {
-    val ds: MutableList<Int?> = spaces.indices.map {
-      if (spaces[it].target == letter) 0 else null
-    }.toMutableList()
-    while (ds.contains(null)) {
-      for (i in ds.indices) {
-        for (e in spaces[i].edges) {
-          if (ds[i] == null && ds[e] != null) {
-            ds[i] = ds[e]!! + 1
-          }
-        }
-      }
-    }
-    return ds.map { it!! }
-  }
-
-  val distances = listOf('A', 'B', 'C', 'D', null).map {
-    it to distancesFor(it)
-  }.toMap()
-
-  val baseEstimate = distances[null]!!.mapIndexed { i, d ->
-    if (d == 0) {
-      0
-    } else {
-      costs[spaces[i].target]!! * d
-    }
-  }.sum()
-
-  fun estimate(position: String): Int {
-    val h = position.mapIndexed { i, c ->
-      if (c == '.') {
-        0
-      } else {
-        val d = costs[c]!!
-        if (spaces[i].target == c) {
-          -distances[null]!![i] * d
-        } else {
-          distances[c]!![i] * d
-        }
-      }
-    }.sum()
-    return h + baseEstimate
-  }
-
   fun bestCost(start: String): Int {
     val goal = wantPosition()
     val complete = mutableSetOf<String>()
-    val dists = mutableMapOf(start to 0)
     val todo = PriorityQueue<WeightedPos>()
-    todo.add(WeightedPos(start, estimate(start)))
-    var steps = 0
+    todo.add(WeightedPos(start, 0))
 
     while (todo.isNotEmpty()) {
-      steps += 1
       val cur = todo.remove()
+      if (complete.contains(cur.pos)) {
+        continue
+      }
       if (cur.pos == goal) {
-        return dists[goal]!!
+        return cur.cost
       }
       complete.add(cur.pos)
 
-//      printPos(cur.pos)
-//      println("Distance: ${dists[cur.pos]}")
-//      println("Estimate: ${estimate(cur.pos)}")
-//      println("Total: ${cur.cost}")
-//      println()
-
       for (i in 0 until spaces.size) {
         for ((move, cost) in legalMoves(cur.pos, i)) {
-          val dist = dists[cur.pos]!! + cost
-          if (!dists.containsKey(move) || dist < dists[move]!!) {
-            dists[move] = dist
-            if (!complete.contains(move)) {
-              val hscore = dist + estimate(move)
-              todo.add(WeightedPos(move, hscore))
-            }
-          }
+          todo.add(WeightedPos(move, cur.cost + cost))
         }
       }
     }
     throw RuntimeException("???")
   }
-
-  fun printPos(p: String) {
-    val lines = mutableListOf<String>()
-    lines.add("#############")
-    lines.add("#${p[8]}${p[9]}${p[10]}${p[11]}${p[12]}${p[13]}${p[14]}${p[15]}${p[16]}${p[17]}${p[18]}#")
-    lines.add("###${p[0]}#${p[2]}#${p[4]}#${p[6]}###")
-    if (part2) {
-      lines.add("  #${p[19]}#${p[21]}#${p[23]}#${p[25]}#")
-      lines.add("  #${p[20]}#${p[22]}#${p[24]}#${p[26]}#")
-    }
-    lines.add("  #${p[1]}#${p[3]}#${p[5]}#${p[7]}#")
-    lines.add("  #########")
-
-    for (l in lines) {
-      println(l)
-    }
-  }
 }
 
-fun main() {
-  val sampleInput = "BACDBCDA..........."
-  val actualInput = "DBCCADBA..........."
-  val append = "DDCBBAAC"
+fun main(args: Array<String>) {
+  val input = args.first()
+  val p1append = "..........."
+  val p2append = p1append + "DDCBBAAC"
 
-  println(Layout.layout(false).bestCost(actualInput))
-//  println(Layout.layout(true).bestCost(actualInput + append))
+  println(Layout.layout(false).bestCost(input + p1append))
+  println(Layout.layout(true).bestCost(input + p2append))
 }
