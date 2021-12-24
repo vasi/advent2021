@@ -1,0 +1,75 @@
+inp w
+mul x 0
+add x z
+mod x 26
+div z L
+add x M
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y N
+mul y x
+add z y
+
+z previously set
+w = I
+x = z % 26
+z = z / L
+x += M
+x = NOT(x == w)
+y = 25 * x + 1
+z *= y
+y = x * (w + N)
+z += y
+
+L -> [ 1  1  1  1 26  1  1 26  1 26 26 26 26 26]
+M -> [13 15 15 11 -7 10 10 -5 15 -3  0 -5 -9  0]
+N -> [ 6  7 10 2  15  8  1 10  5  3  5 11 12 10]
+
+z previously set
+if (z % 26 + M == I) {
+  z = z / L
+} else {
+  z = (z / L) * 26 + (I + N)
+}
+
+Seven L=1, M > 9 -> must take bottom path, mult by 26
+To get to zero, must div by 26 each other time
+
+z0 = 0
+z1 = z0*26 + 9 + 6 = (15)
+z2 = z1*26 + 9 + 7 = (15, 16)
+z3 = z2*26 + 9 + 10 = (15, 16, 19)
+z4 = z3*26 + 9 + 2 = (15, 16, 19, 11)
+z5: TOP
+  z4 % 26 - 7 == I -> I = 11 - 7 = 4
+  z5 = (15, 16, 19)
+z6 = z5*26 + 9 + 8 = (15, 16, 19, 17)
+z7 = z6*26 + 9 + 1 = (15, 16, 19, 17, 10)
+z8: TOP
+  z7 % 26 - 5 == I -> I = 10 - 5 = 5
+  z8 = (15, 16, 19, 17)
+z9 = z8*26 + 9 + 5 = (15, 16, 19, 17, 14)
+z10: TOP
+  z9 % 26 - 3 == I  OHNO too big
+    set I8 = 7 so I8 + 5 - 3 == 9 == I9
+  z10 = (15, 16, 19, 17)
+z11: TOP
+  z10 % 26 == I 
+
+
+I0 + 6 + 0 = I13 -> I0 = 3, I13 = 9
+I1 + 7 - 9 = I12 -> I1 = 9, I12 = 7
+I2 + 10 - 5 = I11 -> I2 = 4, I11 = 9
+I3 + 2 - 7 = I4 -> I3 = 9, I4 = 4
+I5 + 8 + 0 = I10 -> I5 = 1, I10 = 9
+I6 + 1 - 5 = I7 -> I6 = 9, I7 = 5  
+I8 + 5 - 3 = I9 -> I8 = 7, I9 = 9
+
+39494195799979
